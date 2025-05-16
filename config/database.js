@@ -15,4 +15,12 @@ const pool = mysql.createPool({
 // Convert pool to use promises
 const promisePool = pool.promise();
 
+pool.on('connection', (conn) => {
+  console.log(`New connection ID: ${conn.threadId}`);
+});
+
+pool.on('error', (err) => {
+  console.error('Pool error:', err);
+});
+
 module.exports = promisePool; 
