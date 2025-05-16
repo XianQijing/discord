@@ -20,8 +20,8 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 const packageRouter = require('./routes/package');
 const userRouter = require('./routes/user');
-app.use('/api/packages', packageRouter);
-app.use('/api/users', userRouter);
+app.use('/packages', packageRouter);
+app.use('/users', userRouter);
 
 // Test route
 app.get('/', (req, res) => {
