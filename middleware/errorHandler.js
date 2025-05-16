@@ -1,3 +1,6 @@
+const logger = require('../config/logger');
+const { error } = require('../utils/response');
+
 class AppError extends Error {
   constructor(message, statusCode) {
     super(message);
@@ -13,31 +16,28 @@ const errorHandler = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 
-  if (process.env.NODE_ENV === 'development') {
-    res.status(err.statusCode).json({
-      code: err.statusCode,
-      status: err.status,
+  // 创建带RequestId的日志记录器
+  const requestLogger = logger(req.requestId);
+
+  // 记录错误日志
+  requestLogger.error('Error occurred', {
+    error: {
       message: err.message,
-      stack: err.stack
-    });
-  } else {
-    // Production mode
-    if (err.isOperational) {
-      res.status(err.statusCode).json({
-        code: err.statusCode,
-        status: err.status,
-        message: err.message
-      });
-    } else {
-      // Programming or unknown errors
-      console.error('ERROR 💥', err);
-      res.status(500).json({
-        code: 500,
-        status: 'error',
-        message: 'Something went wrong'
-      });
+      stack: err.stack,
+      statusCode: err.statusCode
+    },
+    request: {
+      method: req.method,
+      url: req.originalUrl,
+      body: req.body,
+      query: req.query,
+      params: req.params
     }
-  }
+  });
+
+  res.status(err.statusCode).json(
+    error(err.statusCode, err.message, req.requestId)
+  );
 };
 
 module.exports = {

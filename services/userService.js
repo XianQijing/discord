@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const { AppError } = require('../middleware/errorHandler');
+const logger = require('../config/logger');
 
 // 生成随机9位大写字母
 function generateRandomNickname() {
@@ -21,6 +22,17 @@ function generateRandomPassword() {
   }
   return result;
 }
+    // 转换为北京时间
+const formatBeijingTime = (timestamp) => {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
 
 async function findUser(nickname) {
   const [existingUsers] = await db.query(
@@ -61,6 +73,8 @@ async function createUser(packageId) {
 
     // 获取package数据
     const packageData = await getPackageById(packageId);
+    logger.info('Package data retrieved', { packageId, packageData });
+
     const { 
       days, 
       fast_total, 
@@ -96,6 +110,14 @@ async function createUser(packageId) {
       plan_end
     };
 
+    logger.info('Creating new user', { 
+      email, 
+      nickname, 
+      pkg_id,
+      plan_start: new Date(plan_start).toISOString(),
+      plan_end: new Date(plan_end).toISOString()
+    });
+
     // 插入用户数据
     const insertFields = Object.keys(userData);
     const placeholders = insertFields.map(() => '?').join(',');
@@ -107,13 +129,23 @@ async function createUser(packageId) {
       values
     );
 
+    await connection.commit();
+    logger.info('User created successfully', { email, nickname });
 
     return {
-      email,
-      password: password
+      CardPwdArr: [{
+        c: email,
+        p: password,
+        d: formatBeijingTime(plan_end)
+      }]
     };
   } catch (error) {
     await connection.rollback();
+    logger.error('Error creating user', {
+      error: error.message,
+      stack: error.stack,
+      packageId
+    });
     throw error;
   } finally {
     connection.release();

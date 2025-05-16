@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { createUser } = require('../services/userService');
 const { AppError } = require('../middleware/errorHandler');
+const { success } = require('../utils/response');
 
 // 新增用户
 router.post('/', async (req, res, next) => {
@@ -12,13 +13,9 @@ router.post('/', async (req, res, next) => {
       throw new AppError('请提供id', 400);
     }
 
-    const user = await createUser(id);
+    const data = await createUser(id);
 
-    res.json({
-      code: 200,
-      data: user,
-      message: '用户创建成功'
-    });
+    res.json(success(data, req.requestId));
   } catch (error) {
     next(error);
   }

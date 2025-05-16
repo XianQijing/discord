@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 // const rateLimit = require('express-rate-limit');
 const { AppError, errorHandler } = require('./middleware/errorHandler');
+const requestIdMiddleware = require('./middleware/requestId');
+const requestLogger = require('./middleware/requestLogger');
+const logger = require('./config/logger');
 
 const app = express();
 
@@ -16,11 +19,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 // app.use(limiter);
+app.use(requestIdMiddleware);
+app.use(requestLogger);
 
 // Routes
-const packageRouter = require('./routes/package');
+const packageRouter = require('./routes/query');
 const userRouter = require('./routes/user');
-app.use('/packages', packageRouter);
+app.use('/query', packageRouter);
 app.use('/users', userRouter);
 
 // Test route
@@ -35,8 +40,7 @@ app.all('*', (req, res, next) => {
 // Error handling middleware
 app.use(errorHandler);
 
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  logger.info(`Server is running on port ${PORT}`);
 });
