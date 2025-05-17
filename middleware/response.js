@@ -1,6 +1,15 @@
 const { success } = require('../utils/response');
 const logger = require('../config/logger');
 
+const forbiddenPatterns = [
+  /select.*from/i,
+  /union.*select/i,
+  /insert.*into/i,
+  /delete.*from/i,
+  /drop.*table/i
+];
+
+
 function createID(now) {
   // 生成请求ID，格式：年月日时分秒毫秒
   return now.getFullYear().toString() +
@@ -19,10 +28,20 @@ const requestIdMiddleware = (req, res, next) => {
 
   const originalJson = res.json;
   res.json = function(data) {
-    if (typeof data === 'object') {
+    if (!data.Error_Code) {
       data = success(data, requestId); // 合并到响应体
     }
     return originalJson.call(this, data);
+  }
+
+  const payload = JSON.stringify({
+    ...req.query,
+    ...req.body,
+    ...req.params
+  })
+
+  if (forbiddenPatterns.some(pattern => pattern.test(payload))) {
+    return res.status(403).send('检测到非法请求');
   }
 
   res.on('finish', () => {
