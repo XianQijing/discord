@@ -15,12 +15,8 @@ class AppError extends Error {
 const errorHandler = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
-
-  // 创建带RequestId的日志记录器
-  const requestLogger = logger(req.requestId);
-
   // 记录错误日志
-  requestLogger.error('Error occurred', {
+  logger.error('Error occurred', {
     error: {
       message: err.message,
       stack: err.stack,

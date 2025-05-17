@@ -2,12 +2,28 @@ const winston = require('winston');
 const path = require('path');
 require('winston-daily-rotate-file');
 
+// 自定义日志格式
+const customFormat = winston.format.printf(({ level, message, timestamp, requestId, ...metadata }) => {
+  let msg = `${timestamp} [${level}] `;
+  if (requestId) {
+    msg += `[${requestId}] `;
+  }
+  msg += message;
+  
+  // 添加其他元数据
+  if (Object.keys(metadata).length > 0) {
+    msg += ` ${JSON.stringify(metadata)}`;
+  }
+  
+  return msg;
+});
+
 // 定义日志格式
 const logFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.errors({ stack: true }),
   winston.format.splat(),
-  winston.format.json()
+  customFormat
 );
 
 // 创建日志目录
@@ -64,4 +80,4 @@ const logger = winston.createLogger({
   ]
 });
 
-module.exports = logger; 
+module.exports = logger
