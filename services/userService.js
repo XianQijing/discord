@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const { AppError } = require('../middleware/errorHandler');
 const logger = require('../config/logger');
+const crypto = require('crypto');
 
 // 生成随机9位大写字母
 function generateRandomNickname() {
@@ -93,6 +94,7 @@ async function createUser(packageId) {
     const email = `${nickname}-${days}-${fast_total}${relax_total}${relax_current}`;
     const plan_start = Date.now();
     const plan_end = plan_start + (days * 24 * 60 * 60 * 1000);
+    const uuid = crypto.randomUUID().replace(/-/g, '')
 
     const userData = {
       pkg_type,
@@ -105,9 +107,10 @@ async function createUser(packageId) {
       nickname,
       password,
       email,
-      create_at: 2,
+      create_at: 1,
       plan_start,
-      plan_end
+      plan_end,
+      id :uuid
     };
 
     logger.info('Creating new user', { 
@@ -124,11 +127,18 @@ async function createUser(packageId) {
     const values = Object.values(userData);
 
     await connection.query(
-      `INSERT INTO t_client_user (${insertFields.join(',')}, id, create_time, update_time) 
-       VALUES (${placeholders}, REPLACE(UUID(), '-', ''), NOW(), NOW())`,
+      `INSERT INTO t_client_user (${insertFields.join(',')}, create_time, update_time) 
+       VALUES (${placeholders}, NOW(), NOW())`,
       values
     );
 
+    // 新建频道
+    await connection.query(
+      `INSERT INTO t_user_channel (id, create_time, update_time, title, server_id, user_id)
+      VALUES (REPLACE(UUID(), '-', ''), NOW(), NOW(), ?, ?, ?)`,
+      ['常用频道', 'midjourney', uuid]
+    )
+    
     await connection.commit();
     logger.info('User created successfully', { email, nickname });
 
@@ -136,7 +146,8 @@ async function createUser(packageId) {
       CardPwdArr: [{
         c: email,
         p: password,
-        d: formatBeijingTime(plan_end)
+        d: formatBeijingTime(plan_end),
+        s: formatBeijingTime(plan_start)
       }]
     };
   } catch (error) {
