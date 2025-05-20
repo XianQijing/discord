@@ -8,6 +8,19 @@ const DEFAULT_CHANNEL_TITLE = '常用频道';
 const DEFAULT_SERVER_ID = 'midjourney';
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
 
+const DEFAULT_MID_SETTING = {
+  bot_type: 'MID_JOURNEY',
+  mode: 'fast',
+  version: '--v 6.1',
+  suffix: '--v 6.1 --fast'
+}
+const DEFAULT_NIJI_SETTING = {
+  bot_type: 'NIJI_JOURNEY',
+  mode: 'fast',
+  version: '--niji 6',
+  suffix: '--niji 6 --fast'
+}
+
 // 生成随机6位大写字母
 function generateRandomNickname() {
   let result = '';
@@ -141,6 +154,21 @@ async function createUser(packageId) {
       `INSERT INTO t_user_channel (id, create_time, update_time, title, server_id, user_id)
        VALUES (REPLACE(UUID(), '-', ''), NOW(), NOW(), ?, ?, ?)`,
       [DEFAULT_CHANNEL_TITLE, DEFAULT_SERVER_ID, uuid]
+    );
+
+    // 创建默认配置
+    const midUuid = crypto.randomUUID().replace(/-/g, '');
+    const nijiUuid = crypto.randomUUID().replace(/-/g, '');
+    
+    await connection.query(
+      `INSERT INTO t_user_setting (id, create_time, update_time, raw_mode, stylize, variation_mode, server_id, user_id, version, mode, suffix, bot_type)
+       VALUES 
+       (?, NOW(), NOW(), 0, '', '', ?, ?, ?, ?, ?, ?),
+       (?, NOW(), NOW(), 0, '', '', ?, ?, ?, ?, ?, ?)`,
+      [
+        midUuid, DEFAULT_SERVER_ID, uuid, DEFAULT_MID_SETTING.version, DEFAULT_MID_SETTING.mode, DEFAULT_MID_SETTING.suffix, DEFAULT_MID_SETTING.bot_type,
+        nijiUuid, DEFAULT_SERVER_ID, uuid, DEFAULT_NIJI_SETTING.version, DEFAULT_NIJI_SETTING.mode, DEFAULT_NIJI_SETTING.suffix, DEFAULT_NIJI_SETTING.bot_type
+      ]
     );
       
     await connection.commit();
