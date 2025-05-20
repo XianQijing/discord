@@ -3,27 +3,31 @@ const { AppError } = require('../middleware/errorHandler');
 const logger = require('../config/logger');
 const crypto = require('crypto');
 
-// 生成随机9位大写字母
+// 常量定义
+const DEFAULT_CHANNEL_TITLE = '常用频道';
+const DEFAULT_SERVER_ID = 'midjourney';
+const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
+
+// 生成随机6位大写字母
 function generateRandomNickname() {
-  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   let result = '';
   for (let i = 0; i < 6; i++) {
-    result += letters.charAt(Math.floor(Math.random() * letters.length));
+    result += LETTERS.charAt(Math.floor(Math.random() * LETTERS.length));
   }
-  return result;
+  return result.toUpperCase();
 }
 
 // 生成6-12位随机小写字母密码
 function generateRandomPassword() {
-  const letters = 'abcdefghijklmnopqrstuvwxyz';
   const length = Math.floor(Math.random() * (12 - 6 + 1)) + 6;
   let result = '';
   for (let i = 0; i < length; i++) {
-    result += letters.charAt(Math.floor(Math.random() * letters.length));
+    result += LETTERS.charAt(Math.floor(Math.random() * LETTERS.length));
   }
   return result;
 }
-    // 转换为北京时间
+
+// 转换为北京时间
 const formatBeijingTime = (timestamp) => {
   const date = new Date(timestamp);
   const year = date.getFullYear();
@@ -90,11 +94,11 @@ async function createUser(packageId) {
     // 生成用户数据
     const nickname = await createNickname();
     const password = generateRandomPassword();
+    const uuid = crypto.randomUUID().replace(/-/g, '');
     
     const email = `${nickname}-${days}-${fast_total}${relax_total}${relax_current}`;
     const plan_start = Date.now();
     const plan_end = plan_start + (days * 24 * 60 * 60 * 1000);
-    const uuid = crypto.randomUUID().replace(/-/g, '')
 
     const userData = {
       pkg_type,
@@ -110,7 +114,7 @@ async function createUser(packageId) {
       create_at: 1,
       plan_start,
       plan_end,
-      id :uuid
+      id: uuid
     };
 
     logger.info('Creating new user', { 
@@ -132,15 +136,15 @@ async function createUser(packageId) {
       values
     );
 
-    // 新建频道
+    // 创建默认频道
     await connection.query(
       `INSERT INTO t_user_channel (id, create_time, update_time, title, server_id, user_id)
-      VALUES (REPLACE(UUID(), '-', ''), NOW(), NOW(), ?, ?, ?)`,
-      ['常用频道', 'midjourney', uuid]
-    )
-    
+       VALUES (REPLACE(UUID(), '-', ''), NOW(), NOW(), ?, ?, ?)`,
+      [DEFAULT_CHANNEL_TITLE, DEFAULT_SERVER_ID, uuid]
+    );
+      
     await connection.commit();
-    logger.info('User created successfully', { email, nickname });
+    logger.info('User created successfully', { email, nickname, userId: uuid });
 
     return {
       CardPwdArr: [{
