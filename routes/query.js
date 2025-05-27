@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
+const PackageService = require('../services/packageService')
 
 // 获取所有package数据
 router.get('/', async (req, res, next) => {
   try {
-    const [list] = await db.query('SELECT id, title, days, status, description FROM t_package');
+    const [list] = await PackageService.getList()
 
     res.json(list);
   } catch (error) {

@@ -1,63 +1,71 @@
-const db = require('../config/database');
 const { AppError } = require('../middleware/errorHandler');
 const logger = require('../config/logger');
 const crypto = require('crypto');
+const PackageService = require('./packageService.js');
+const userDao = require('../dao/userDao');
+const { generateRandomNickname, generateRandomPassword, formatBeijingTime } = require('../utils')
 
-// 常量定义
-const DEFAULT_CHANNEL_TITLE = '常用频道';
-const DEFAULT_SERVER_ID = 'midjourney';
-const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
-
-const DEFAULT_MID_SETTING = {
-  bot_type: 'MID_JOURNEY',
-  mode: 'fast',
-  version: '--v 6.1',
-  server_id: DEFAULT_SERVER_ID
-}
-const DEFAULT_NIJI_SETTING = {
-  bot_type: 'NIJI_JOURNEY',
-  mode: 'fast',
-  version: '--niji 6',
-  server_id: DEFAULT_SERVER_ID
-}
-
-// 生成随机6位大写字母
-function generateRandomNickname() {
-  let result = '';
-  for (let i = 0; i < 6; i++) {
-    result += LETTERS.charAt(Math.floor(Math.random() * LETTERS.length));
+class Setting {
+  constructor() {
+    this.midSetting = {
+      bot_type: 'MID_JOURNEY',
+      mode: 'fast',
+      version: '--v 6.1',
+      server_id: 'midjourney'
+    }
+    this.nijiSetting = {
+      bot_type: 'NIJI_JOURNEY',
+      mode: 'fast',
+      version: '--niji 6',
+      server_id: 'midjourney'
+    }
   }
-  return result.toUpperCase();
-}
-
-// 生成6-12位随机小写字母密码
-function generateRandomPassword() {
-  const length = Math.floor(Math.random() * (12 - 6 + 1)) + 6;
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += LETTERS.charAt(Math.floor(Math.random() * LETTERS.length));
+  getSetting(userId) {
+    return [{ ...this.midSetting, id: crypto.randomUUID().replace(/-/g, ''), suffix: `${this.midSetting.version} --${this.midSetting.mode}`, user_id: userId }, { ...this.nijiSetting, id: crypto.randomUUID().replace(/-/g, ''), suffix: `${this.nijiSetting.version} --${this.nijiSetting.mode}`, user_id: userId }]
   }
-  return result;
 }
 
-// 转换为北京时间
-const formatBeijingTime = (timestamp) => {
-  const date = new Date(timestamp);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const seconds = String(date.getSeconds()).padStart(2, '0');
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-};
+class User {
+  constructor({
+    days,
+    fast_total,
+    relax_total,
+    relax_current,
+    id,
+    status,
+    pkg_type,
+    relax_interval
+  }) {
+    this.userData = {
+      fast_total,
+      relax_total,
+      relax_current,
+      pkg_id: id,
+      status,
+      pkg_type,
+      relax_interval
+    }
+    this.days = days
+  }
+  async create() {
+    const nickname = await createNickname();
+    const plan_start = Date.now();
+    return {
+      ...this.userData,
+      password: generateRandomPassword(),
+      id: crypto.randomUUID().replace(/-/g, ''),
+      email: `${nickname}-${this.days}-${this.userData.fast_total}${this.userData.relax_total}${this.userData.relax_current}`,
+      plan_end: plan_start + (this.days * 24 * 60 * 60 * 1000),
+      plan_start,
+      nickname
+    }
+  }
+}
+
+
 
 async function findUser(nickname) {
-  const [existingUsers] = await db.query(
-    'SELECT * FROM t_client_user WHERE nickname = ?',
-    [nickname]
-  );
-  return existingUsers;
+  return await userDao.findByNickname(nickname);
 }
 
 async function createNickname() {
@@ -71,150 +79,43 @@ async function createNickname() {
 }
 
 async function getPackageById(packageId) {
-  const [packages] = await db.query(
-    'SELECT * FROM t_package WHERE id = ?',
-    [packageId]
-  );
-  
+  const [packages] = await PackageService.getById(packageId)
   if (packages.length === 0) {
     throw new AppError('未找到指定的数据', 400);
   }
-  
+
   return packages[0];
 }
 
 async function createUser(packageId) {
-  const connection = await db.getConnection();
-  
   try {
-    await connection.beginTransaction();
-
     // 获取package数据
     const packageData = await getPackageById(packageId);
-    logger.info('Package data retrieved', { packageId, packageData });
 
-    const { 
-      days, 
-      fast_total, 
-      relax_total, 
-      relax_current, 
-      id: pkg_id, 
-      status, 
-      pkg_type, 
-      relax_interval 
-    } = packageData;
-    
-    // 生成用户数据
-    const nickname = await createNickname();
-    const password = generateRandomPassword();
-    const uuid = crypto.randomUUID().replace(/-/g, '');
-    
-    const email = `${nickname}-${days}-${fast_total}${relax_total}${relax_current}`;
-    const plan_start = Date.now();
-    const plan_end = plan_start + (days * 24 * 60 * 60 * 1000);
+    const user = new User(packageData)
+    const userData = await user.create()
 
-    const userData = {
-      pkg_type,
-      relax_interval,
-      relax_current,
-      status,
-      pkg_id,
-      fast_total,
-      relax_total,
-      nickname,
-      password,
-      email,
-      create_at: 1,
-      plan_start,
-      plan_end,
-      id: uuid
-    };
 
-    logger.info('Creating new user', { 
-      email, 
-      nickname, 
-      pkg_id,
-      plan_start: new Date(plan_start).toISOString(),
-      plan_end: new Date(plan_end).toISOString()
-    });
+    const [midSetting, nijiSetting] = new Setting().getSetting(userData.id);
 
-    // 插入用户数据
-    const insertFields = Object.keys(userData);
-    const placeholders = insertFields.map(() => '?').join(',');
-    const values = Object.values(userData);
-
-    await connection.query(
-      `INSERT INTO t_client_user (${insertFields.join(',')}, create_time, update_time) 
-       VALUES (${placeholders}, NOW(), NOW())`,
-      values
-    );
-
-    // 创建默认频道
-    await connection.query(
-      `INSERT INTO t_user_channel (id, create_time, update_time, title, server_id, user_id)
-       VALUES (REPLACE(UUID(), '-', ''), NOW(), NOW(), ?, ?, ?)`,
-      [DEFAULT_CHANNEL_TITLE, DEFAULT_SERVER_ID, uuid]
-    );
-
-    // 创建默认配置
-    const createSetting = (baseSetting, userId) => ({
-      ...baseSetting,
-      id: crypto.randomUUID().replace(/-/g, ''),
-      suffix: `${baseSetting.version} --${baseSetting.mode}`,
-      user_id: userId
-    });
-
-    const midSetting = createSetting(DEFAULT_MID_SETTING, uuid);
-    const nijiSetting = createSetting(DEFAULT_NIJI_SETTING, uuid);
-
-    const settingFields = [
-      'create_time',
-      'update_time',
-      'raw_mode',
-      'stylize',
-      'variation_mode',
-      ...Object.keys(midSetting)
-    ].join(',');
-
-    const settingPlaceholders = `(NOW(), NOW(), 0, '', '', ${Object.keys(midSetting).map(() => '?').join(',')})`;
-
-    await connection.query(
-      `INSERT INTO t_user_setting (${settingFields})
-       VALUES 
-       ${settingPlaceholders},
-       ${settingPlaceholders}`,
-      [
-        ...Object.values(midSetting),
-        ...Object.values(nijiSetting)
-      ]
-    );
-      
-    await connection.commit();
-    logger.info('User created successfully', { 
-      email, 
-      nickname, 
-      userId: uuid,
-      settingIds: [midSetting.id, nijiSetting.id]
-    });
+    // 使用事务创建用户及其相关数据
+    await userDao.createUserWithTransaction(userData, channelId = crypto.randomUUID().replace(/-/g, ''), [midSetting, nijiSetting]);
 
     return {
       CardPwdArr: [{
-        c: email,
-        p: password,
-        d: formatBeijingTime(plan_end),
-        s: formatBeijingTime(plan_start)
+        c: userData.email,
+        p: userData.password,
+        d: formatBeijingTime(userData.plan_end),
+        s: formatBeijingTime(userData.plan_start)
       }]
     };
   } catch (error) {
-    await connection.rollback();
     logger.error('Error creating user', {
       error: error.message,
       stack: error.stack,
       packageId
     });
     throw error;
-  } finally {
-    connection.release();
   }
 }
 

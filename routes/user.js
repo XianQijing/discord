@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { createUser } = require('../services/userService');
 const { AppError } = require('../middleware/errorHandler');
-const { success } = require('../utils/response');
 
 // 新增用户
 router.post('/', async (req, res, next) => {

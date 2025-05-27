@@ -31,6 +31,14 @@ const requestIdMiddleware = (req, res, next) => {
     if (!data.Error_Code) {
       data = success(data, requestId); // 合并到响应体
     }
+    logger.info('Request data', {
+      method: req.method,
+      url: req.originalUrl,
+      status: res.statusCode,
+      requestId,
+      ip: req.ip,
+      data
+    });
     return originalJson.call(this, data);
   }
 
