@@ -87,7 +87,7 @@ async function getPackageById(packageId) {
   return packages[0];
 }
 
-async function createUser(packageId) {
+async function createUser(packageId, _private) {
   try {
     // 获取package数据
     const packageData = await getPackageById(packageId);
@@ -101,14 +101,23 @@ async function createUser(packageId) {
     // 使用事务创建用户及其相关数据
     await userDao.createUserWithTransaction(userData, channelId = crypto.randomUUID().replace(/-/g, ''), [midSetting, nijiSetting]);
 
-    return {
+    const userResponse = {
       CardPwdArr: [{
         c: userData.email,
         p: userData.password,
         d: formatBeijingTime(userData.plan_end),
         s: formatBeijingTime(userData.plan_start)
       }]
-    };
+    }
+
+    if (_private) {
+      return {
+        id: userData.id,
+        userResponse
+      }
+    }
+
+    return userResponse;
   } catch (error) {
     logger.error('Error creating user', {
       error: error.message,

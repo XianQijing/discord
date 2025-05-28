@@ -11,6 +11,9 @@ router.post('/', async (req, res, next) => {
     if (!id) {
       throw new AppError('请提供id', 400);
     }
+    if (!/^[a-zA-Z0-9]+$/.test(id)) {
+      throw new AppError('Id只能包含字母、数字', 400);
+    }
 
     const data = await createUser(id);
 

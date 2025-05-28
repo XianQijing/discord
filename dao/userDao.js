@@ -10,6 +10,14 @@ class UserDao {
     return users;
   }
 
+  async findById(id) {
+    const [users] = await db.query(
+      'SELECT * FROM t_client_user WHERE id = ?',
+      [id]
+    );
+    return users;
+  }
+
   async createUserWithTransaction(userData, channelId, settings) {
     const connection = await db.getConnection();
     try {
@@ -58,7 +66,6 @@ class UserDao {
       );
 
       await connection.commit();
-      logger.info('User creation transaction completed successfully', { userId: userData.id });
     } catch (error) {
       await connection.rollback();
       logger.error('Error in user creation transaction', {

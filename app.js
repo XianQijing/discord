@@ -23,8 +23,10 @@ app.use(response);
 // Routes
 const packageRouter = require('./routes/query');
 const userRouter = require('./routes/user');
+const activeCodeRouter = require('./routes/activeCode');
 app.use('/query', packageRouter);
 app.use('/users', userRouter);
+app.use('/code', activeCodeRouter);
 
 // Test route
 app.get('/', (req, res) => {
