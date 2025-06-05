@@ -4,6 +4,12 @@ const rateLimit = require('express-rate-limit');
 const { AppError, errorHandler } = require('./middleware/errorHandler');
 const response = require('./middleware/response');
 const logger = require('./config/logger');
+const cleanLogs = require('./scripts/cleanLogs');
+
+// 启动时清理日志
+cleanLogs().catch(error => {
+  logger.error('启动时清理日志失败:', error);
+});
 
 const app = express();
 

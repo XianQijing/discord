@@ -30,29 +30,38 @@ const logFormat = winston.format.combine(
 const logDir = 'logs';
 
 // 创建日志传输器
+const createRotateTransport = (filename, level = 'info') => {
+  return new winston.transports.DailyRotateFile({
+    filename: path.join(logDir, filename),
+    datePattern: 'YYYY-MM-DD',
+    level,
+    maxSize: '20m',
+    maxFiles: '14d',
+    zippedArchive: true, // 压缩旧日志文件
+    format: logFormat,
+    handleExceptions: true,
+    handleRejections: true,
+    json: false,
+    createSymlink: true, // 创建当前日志文件的符号链接
+    symlinkName: filename.replace('-%DATE%', '-current'),
+    auditFile: path.join(logDir, 'audit.json'), // 审计文件
+    options: { flags: 'a' } // 追加模式
+  });
+};
+
 const transports = [
   // 控制台输出
   new winston.transports.Console({
     format: winston.format.combine(
       winston.format.colorize(),
       winston.format.simple()
-    )
+    ),
+    level: process.env.NODE_ENV === 'production' ? 'info' : 'debug'
   }),
   // 错误日志文件
-  new winston.transports.DailyRotateFile({
-    filename: path.join(logDir, 'error-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
-    level: 'error',
-    maxSize: '20m',
-    maxFiles: '14d'
-  }),
+  createRotateTransport('error-%DATE%.log', 'error'),
   // 所有日志文件
-  new winston.transports.DailyRotateFile({
-    filename: path.join(logDir, 'combined-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
-    maxSize: '20m',
-    maxFiles: '14d'
-  })
+  createRotateTransport('combined-%DATE%.log', 'info')
 ];
 
 // 创建logger实例
@@ -62,22 +71,29 @@ const logger = winston.createLogger({
   transports,
   // 处理未捕获的异常
   exceptionHandlers: [
-    new winston.transports.DailyRotateFile({
-      filename: path.join(logDir, 'exceptions-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      maxSize: '20m',
-      maxFiles: '14d'
-    })
+    createRotateTransport('exceptions-%DATE%.log', 'error')
   ],
   // 处理未处理的Promise拒绝
   rejectionHandlers: [
-    new winston.transports.DailyRotateFile({
-      filename: path.join(logDir, 'rejections-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      maxSize: '20m',
-      maxFiles: '14d'
-    })
-  ]
+    createRotateTransport('rejections-%DATE%.log', 'error')
+  ],
+  // 退出时处理未完成的日志写入
+  exitOnError: false
 });
 
-module.exports = logger
+// 添加流接口，用于 Morgan 等中间件
+logger.stream = {
+  write: (message) => {
+    logger.info(message.trim());
+  }
+};
+
+// 优雅关闭
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received. Closing logger...');
+  logger.end(() => {
+    process.exit(0);
+  });
+});
+
+module.exports = logger;
