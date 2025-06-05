@@ -74,7 +74,21 @@ async function activateCode(activeCode) {
   }
 }
 
+// 获取激活码列表
+async function getList(params) {
+  try {
+    return await activeCodeDao.getList(params)
+  } catch (error) {
+    logger.error('Error activating code', {
+      error: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
+}
+
 module.exports = {
   generateActiveCodes,
-  activateCode
+  activateCode,
+  getList
 }; 

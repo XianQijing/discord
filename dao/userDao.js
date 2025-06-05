@@ -29,8 +29,8 @@ class UserDao {
       const values = Object.values(userData);
 
       await connection.query(
-        `INSERT INTO t_client_user (${insertFields.join(',')}, create_time, update_time) 
-         VALUES (${placeholders}, NOW(), NOW())`,
+        `INSERT INTO t_client_user (${insertFields.join(',')}, create_time, update_time, create_at) 
+         VALUES (${placeholders}, NOW(), NOW(), 1)`,
         values
       );
 

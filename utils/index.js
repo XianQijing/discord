@@ -11,6 +11,12 @@ const formatBeijingTime = (timestamp) => {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
+const formatUTCTime = (time) => {
+  if (!time) return
+  const date = new Date(time)
+  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+}
+
 // 常量定义
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
 // 生成随机6位大写字母
@@ -35,5 +41,6 @@ function generateRandomPassword() {
 module.exports = {
   formatBeijingTime,
   generateRandomNickname,
-  generateRandomPassword
+  generateRandomPassword,
+  formatUTCTime
 }

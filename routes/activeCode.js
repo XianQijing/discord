@@ -53,4 +53,25 @@ router.post('/active', async (req, res, next) => {
   }
 });
 
+// 获取激活码列表
+router.post('/list', async (req, res) => {
+  try {
+    const { page = 1, limit = 20, packageId = '', status = '' } = req.body
+    const result = await activeCodeService.getList({
+      page: parseInt(page),
+      limit: parseInt(limit),
+      packageId,
+      status
+    })
+    res.json(result)
+  } catch (error) {
+    console.error('获取激活码列表失败:', error)
+    res.json({
+      code: 500,
+      message: '获取激活码列表失败',
+      data: null
+    })
+  }
+})
+
 module.exports = router; 

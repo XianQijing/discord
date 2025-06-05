@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const logger = require('../config/logger');
 const crypto = require('crypto');
+const { formatUTCTime } = require('../utils')
 
 class ActiveCodeDao {
   async isActiveCodeExists(activeCode) {
@@ -89,6 +90,43 @@ class ActiveCodeDao {
       [status, userId, new Date(), activeCode]
     );
     return result.affectedRows > 0;
+  }
+
+  // 分页查询激活码列表
+  async getList({ page = 1, limit = 20, packageId = '', status = '' }) {
+    const offset = (page - 1) * limit
+    let sql = 'SELECT * FROM activecode WHERE 1=1'
+    const params = []
+
+    if (packageId) {
+      sql += ' AND package_id = ?'
+      params.push(packageId)
+    }
+
+    if (status !== '') {
+      sql += ' AND status = ?'
+      params.push(status)
+    }
+
+    // 获取总数
+    const countSql = sql.replace('SELECT *', 'SELECT COUNT(*) as total')
+    const [countResult] = await db.query(countSql, params)
+    const total = countResult[0]?.total
+    // 获取分页数据
+    sql += ' ORDER BY create_time DESC LIMIT ? OFFSET ?'
+    params.push(limit, offset)
+    const list = await db.query(sql, params)
+
+    return {
+      items: list[0]?.map(item => {
+        return {
+          ...item,
+          create_time: formatUTCTime(item.create_time),
+          active_time: formatUTCTime(item.active_time)
+        }
+      }),
+      total
+    }
   }
 }
 
