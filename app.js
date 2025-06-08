@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
@@ -5,6 +6,8 @@ const { AppError, errorHandler } = require('./middleware/errorHandler');
 const response = require('./middleware/response');
 const logger = require('./config/logger');
 const cleanLogs = require('./scripts/cleanLogs');
+const expressJWT = require('express-jwt'); 
+const tokenValidate = require('./config/tokenValidate')
 
 // 启动时清理日志
 cleanLogs().catch(error => {
@@ -19,6 +22,14 @@ const limiter = rateLimit({
   max: 100, // 限制每个IP 1分钟内最多100个请求
   message: '请求过于频繁'
 });
+
+app.use(
+  expressJWT.expressjwt({
+    secret: process.env.SECRET_KEY, // 使用你的秘钥
+    algorithms: ['HS256'],
+    isRevoked: tokenValidate,
+  }).unless({ path: ['/query', '/users', '/code/active']})
+);
 
 // 中间件
 app.use(cors());

@@ -1,5 +1,6 @@
 const mysql = require('mysql2');
 require('dotenv').config();
+const logger = require('../config/logger');
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -19,8 +20,11 @@ pool.on('connection', (conn) => {
   console.log(`New connection ID: ${conn.threadId}`);
 });
 
-pool.on('error', (err) => {
-  console.error('Pool error:', err);
+pool.on('error', (error) => {
+  logger.error('mysql Pool error', {
+    error: error.message,
+    stack: error.stack
+  });
 });
 
 module.exports = promisePool; 
